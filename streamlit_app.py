@@ -8,7 +8,7 @@ import random
 st.set_page_config(page_title="Judd Trips App", layout="wide")
 
 
-from database import (getAllTrips,getTeachers,getTripById,createNewTrip,updateTripDetails,deleteTrip,getEnrolledStudents)
+from database import (getAllTrips,getTeachers,getTrip,createTrip,updateTrip,deleteTrip,getEnrolledStudents)
 
 
 def displayTripsData(trips):
@@ -25,7 +25,6 @@ def displayTripsData(trips):
         'National': 'Yes' if t['national'] == 1 else 'No'
     } for t in trips]
     return pd.DataFrame(data)
-
 demoUser = {"email": "admin@judd.kent.sch.uk", "password": "admin123"}
 
 if "isLoggedIn" not in st.session_state:
@@ -117,11 +116,11 @@ def calendarPage():
 
     st.markdown("""
     <style>
-    .calendarTable {width: 100%; border-collapse: collapse;}
-    .calendarTable th {padding: 8px; text-align: center; background: #1f3b4d; color: white;}
-    .calendarTable td {padding: 12px; text-align: center; border: 1px solid #ddd;}
-    .tripDay {background-color: #ffd54f;}
-    .dayNumber {font-weight: 900;}
+.calendarTable {width: 100%; border-collapse: collapse;}
+.calendarTable th {padding: 8px; text-align: center; background: #1f3b4d; color: white;}
+.calendarTable td {padding: 12px; text-align: center; border: 2px solid #ddd; background-color: inherit;}
+.tripDay {background-color: #ffd54f;}
+.dayNumber {font-weight: 900; color: black;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -152,65 +151,104 @@ def homePage():
     st.subheader("Trip Administrator Dashboard")
     st.image("https://search.brave.com/images?q=the+judd+school", use_container_width=True)
 
+# --- Helpers ---
+def getTripOptionsNumbered():
+    """Return a dict of numbered trip display name -> tripID, sorted by tripID."""
+    trips = getAllTrips()
+    trips.sort(key=lambda x: x['tripID'])
+    options = {f"{i+1}. {t['title']}": t['tripID'] for i, t in enumerate(trips)}
+    return options, trips
+
+def getTeacherOptions():
+    teachers = getTeachers()
+    return {f"{t['first']} {t['second']} (ID: {t['teacherID']})": t['teacherID'] for t in teachers}, teachers
+
+
+# --- Tabs ---
+
+def getTeacherOptions():
+    teachers = getTeachers()
+    teacherOptions = {f"{t['first']} {t['second']} (ID: {t['teacherID']})": t['teacherID'] for t in teachers}
+    return teacherOptions, teachers
+
+def getTripOptionsNumbered():
+    allTrips = getAllTrips()
+    if not allTrips:
+        return {}, []
+    sortedTrips = sorted(allTrips, key=lambda x: x['tripID'])
+    tripOptions = {f"{i+1}. {t['title']}": t['tripID'] for i, t in enumerate(sortedTrips)}
+    return tripOptions, sortedTrips
+
+
+# ------------------ Tabs ------------------
+
 def createTripTab():
     st.subheader("Plan a New School Trip")
-    teachers = getTeachers()
-    teacherOptions = {f"{t['first']} {t['last']} (ID: {t['teacherID']})": t['teacherID'] for t in teachers}
+    teacherOptions, _ = getTeacherOptions()
 
     with st.form("create_trip_form", clear_on_submit=True):
         col1, col2 = st.columns(2)
         with col1:
             title = st.text_input("Trip Title", max_chars=100)
             destination = st.text_input("Destination")
-            subject = st.selectbox("Subject Area" , ["Maths", "English", "Religious Studies", "Physics", "Chemistry", "Biology", "Geography","History","Music","Design and Technology", "Computer Science","PE","German","French","Latin","Classics","Art","Economics","Politics","Philosophy"])
+            subject = st.selectbox("Subject Area", [
+                "Maths", "English", "Religious Studies", "Physics", "Chemistry", "Biology",
+                "Geography","History","Music","Design and Technology", "Computer Science",
+                "PE","German","French","Latin","Classics","Art","Economics","Politics","Philosophy"
+            ])
             keys = list(teacherOptions.keys())
             if not keys:
                 st.warning("No teachers found.")
                 teacherId = None
             else:
-                teacherName = st.selectbox("Lead Teacher", options=keys)
+                teacherName = st.selectbox("Lead Teacher", options=keys, key="create_teacher_select")
                 teacherId = teacherOptions.get(teacherName)
+
         with col2:
-            startDate = st.date_input("Start Date", min_value=date.today())
+            startDate = st.date_input("Start Date")
             endDate = st.date_input("End Date", min_value=startDate)
-            tripType = st.selectbox("Trip Type", ["Day Trip", "Residential (UK)", "Residential (Overseas)", "Remote Learning"])
+            tripType = st.selectbox("Trip Type", ["Day Trip", "Residential (UK)", "Residential (Overseas)"], key="create_trip_type")
             national = st.checkbox("National (UK-based)", value=True)
             activeStatus = st.checkbox("Active Status", value=True)
 
-        submitted = st.form_submit_button("Create Trip")
-        if submitted:
+        if st.form_submit_button("Create Trip"):
             if not title or not destination or not subject:
                 st.error("Missing fields.")
             elif not teacherId:
                 st.error("Teacher missing.")
             else:
-                createNewTrip(
-                    teacherId = teacherId,
-                    destination = destination,
-                    startDate = startDate.isoformat(),
-                    endDate = endDate.isoformat(),
-                    tripType = tripType,
-                    title = title,
-                    subject = subject,
-                    national = 1 if national else 0,
-                    activeStatus=1 if activeStatus else 0
+                createTrip(
+                    teacherID=teacherId,
+                    destination=destination,
+                    startDate=startDate.isoformat(),
+                    endDate=endDate.isoformat(),
+                    tripType=tripType,
+                    activeStatus=1 if activeStatus else 0,
+                    title=title,
+                    subject=subject,
+                    national=1 if national else 0
                 )
                 st.success(f"Trip '{title}' created.")
                 st.rerun()
 
-def editTripTab(allTrips):
+
+def editTripTab():
     st.subheader("Modify Existing Trip Details")
-    if not allTrips:
-        st.info("No trips.")
+    tripOptions, _ = getTripOptionsNumbered()
+    if not tripOptions:
+        st.info("No trips available.")
         return
 
-    tripOptions = {f"{t['title']} (ID: {t['tripID']})": t['tripID'] for t in allTrips}
     selected = st.selectbox("Select Trip", tripOptions.keys(), key="edit_trip_select")
     tripId = tripOptions[selected]
-    trip = getTripById(tripId)
+    trip = getTrip(tripId)
+    if not trip:
+        st.warning("Trip not found.")
+        return
 
     currentStart = datetime.strptime(trip['startDate'], '%Y-%m-%d').date()
     currentEnd = datetime.strptime(trip['endDate'], '%Y-%m-%d').date()
+    teacherOptions, _ = getTeacherOptions()
 
     with st.form("edit_trip_form"):
         col1, col2 = st.columns(2)
@@ -218,23 +256,26 @@ def editTripTab(allTrips):
             newTitle = st.text_input("Trip Title", value=trip['title'])
             newDestination = st.text_input("Destination", value=trip['destination'])
             newSubject = st.text_input("Subject Area", value=trip['subject'])
+            teacherKeys = list(teacherOptions.keys())
+            idx = next((i for i, k in enumerate(teacherKeys) if teacherOptions[k] == trip['teacherID']), 0)
+            newTeacher = st.selectbox("Lead Teacher", options=teacherKeys, index=idx, key="edit_teacher_select")
+            newTeacherId = teacherOptions[newTeacher]
+
         with col2:
             newStart = st.date_input("Start Date", value=currentStart)
             newEnd = st.date_input("End Date", value=currentEnd, min_value=newStart)
-            tripTypes = ["Day Trip", "Residential (UK)", "Residential (Overseas)", "Remote Learning"]
+            tripTypes = ["Day Trip", "Residential (UK)", "Residential (Overseas)"]
             idx = tripTypes.index(trip['tripType']) if trip['tripType'] in tripTypes else 0
             newType = st.selectbox("Trip Type", tripTypes, index=idx, key="edit_trip_type")
 
         c1, c2 = st.columns(2)
-        with c1:
-            newNational = st.checkbox("National", value=(trip['national'] == 1))
-        with c2:
-            newActive = st.checkbox("Active", value=(trip['activeStatus'] == 1))
+        with c1: newNational = st.checkbox("National", value=(trip['national'] == 1))
+        with c2: newActive = st.checkbox("Active", value=(trip['activeStatus'] == 1))
 
-        submitted = st.form_submit_button("Save Changes")
-        if submitted:
-            updateTripDetails(
-                tripId=tripId,
+        if st.form_submit_button("Save Changes"):
+            updateTrip(
+                tripID=tripId,
+                teacherID=newTeacherId,
                 destination=newDestination,
                 startDate=newStart.isoformat(),
                 endDate=newEnd.isoformat(),
@@ -248,34 +289,34 @@ def editTripTab(allTrips):
             st.rerun()
 
 
-def deleteTripTab(allTrips):
+def deleteTripTab():
     st.subheader("Permanently Delete a Trip")
-    if not allTrips:
-        st.info("No trips.")
+    tripOptions, _ = getTripOptionsNumbered()
+    if not tripOptions:
+        st.info("No trips available.")
         return
 
-    tripOptions = {f"{t['title']} (ID: {t['tripID']})": t['tripID'] for t in allTrips}
     selected = st.selectbox("Select Trip to Delete", tripOptions.keys(), key="delete_trip_select")
     tripId = tripOptions[selected]
-    title = selected.split(" (ID:")[0]
+    title = selected.split(". ", 1)[1]
 
     st.warning(f"Delete '{title}'?")
-    if st.button("Confirm Delete", key="confirm_delete_button"):
+    if st.button("Confirm Delete", key="delete_confirm_button"):
         deleteTrip(tripId)
         st.success("Deleted.")
         st.rerun()
 
 
-def cloneAnnualTripTab(allTrips):
+def cloneAnnualTripTab():
     st.subheader("Clone an Existing Trip")
-    if not allTrips:
-        st.info("No trips.")
+    tripOptions, _ = getTripOptionsNumbered()
+    if not tripOptions:
+        st.info("No trips available.")
         return
 
-    tripOptions = {f"{t['title']} (ID: {t['tripID']})": t['tripID'] for t in allTrips}
     selected = st.selectbox("Select Source Trip", tripOptions.keys(), key="clone_trip_select")
     tripId = tripOptions[selected]
-    trip = getTripById(tripId)
+    trip = getTrip(tripId)
     if not trip:
         st.warning("Trip not found.")
         return
@@ -286,24 +327,23 @@ def cloneAnnualTripTab(allTrips):
     try:
         newStart = start.replace(year=start.year + 1)
         newEnd = end.replace(year=end.year + 1)
-    except:
+    except ValueError:
         newStart = date(start.year + 1, start.month, 1)
         newEnd = date(end.year + 1, end.month, 1)
 
     with st.form("clone_trip_form", clear_on_submit=True):
-        newTitle = st.text_input("New Title", value=f"Annual {trip['title']} ({newStart.year})", key="clone_title")
+        newTitle = st.text_input("New Title", value=f"Annual {trip['title']} ({newStart.year})")
         col1, col2 = st.columns(2)
         with col1:
-            newSD = st.date_input("Start Date", value=newStart, key="clone_start")
-            newNat = st.checkbox("National", value=(trip['national'] == 1), key="clone_national")
+            newSD = st.date_input("Start Date", value=newStart)
+            newNat = st.checkbox("National", value=(trip['national'] == 1))
         with col2:
-            newED = st.date_input("End Date", value=newEnd, min_value=newSD, key="clone_end")
-            newAct = st.checkbox("Active", value=True, key="clone_active")
+            newED = st.date_input("End Date", value=newEnd, min_value=newSD)
+            newAct = st.checkbox("Active", value=True)
 
-        submitted = st.form_submit_button("Clone Trip", key="clone_submit")
-        if submitted:
-            createNewTrip(
-                teacherId=trip['teacherID'],
+        if st.form_submit_button("Clone Trip"):
+            createTrip(
+                teacherID=trip['teacherID'],
                 destination=trip['destination'],
                 startDate=newSD.isoformat(),
                 endDate=newED.isoformat(),
@@ -317,13 +357,13 @@ def cloneAnnualTripTab(allTrips):
             st.rerun()
 
 
-def viewEnrollmentTab(allTrips):
+def viewEnrollmentTab():
     st.subheader("View Enrollment")
-    if not allTrips:
-        st.info("No trips.")
+    tripOptions, _ = getTripOptionsNumbered()
+    if not tripOptions:
+        st.info("No trips available.")
         return
 
-    tripOptions = {f"{t['title']} (ID: {t['tripID']})": t['tripID'] for t in allTrips}
     selected = st.selectbox("Select Trip", tripOptions.keys(), key="view_enrollment_select")
     tripId = tripOptions[selected]
     enrolled = getEnrolledStudents(tripId)
@@ -338,20 +378,10 @@ def viewEnrollmentTab(allTrips):
             'Medical Info': s.get('medicalInfo') or 'None',
             'Consent Given': 'Yes' if s.get('consent') == 1 else 'No'
         } for s in enrolled]
-
-        df = pd.DataFrame(data)
-        st.dataframe(df, use_container_width=True, hide_index=True)
-        st.download_button(
-            "Download CSV",
-            df.to_csv(index=False).encode('utf-8'),
-            f"enrollment_trip_{tripId}.csv",
-            "text/csv",
-            key="download_enrollment"
-        )
+        st.dataframe(data, use_container_width=True, hide_index=True)
     else:
         st.warning("No students enrolled.")
-
-
+        
 def tripsPage():
     st.title("Trips Management")
     allTrips = getAllTrips()
@@ -370,10 +400,10 @@ def tripsPage():
         "View Enrollment"
     ])
     with create: createTripTab()
-    with edit: editTripTab(allTrips)
-    with delete: deleteTripTab(allTrips)
-    with clone: cloneAnnualTripTab(allTrips)
-    with view: viewEnrollmentTab(allTrips)
+    with edit: editTripTab()
+    with delete: deleteTripTab()
+    with clone: cloneAnnualTripTab()
+    with view: viewEnrollmentTab()
 
 def renderPage():
     if st.session_state.page == "Home":
@@ -390,3 +420,4 @@ if st.session_state.isLoggedIn:
     renderPage()
 else:
     loginPage()
+
