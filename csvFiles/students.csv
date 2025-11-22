@@ -1,0 +1,22 @@
+studentID,first,last,DOB,medicalInfo,consent,year,house,dietaryRequirements
+1,John,Doe,2009-05-12,Peanut allergy,Yes,9,Bryant,Vegetarian
+2,Emma,Brown,2008-11-20,,Yes,10,Evans,
+3,Liam,Patel,2007-03-05,Asthma,Yes,11,Morgan,Gluten-free
+4,Olivia,Nguyen,2009-07-18,,Yes,9,Starling,
+5,Noah,Clarke,2008-12-02,,No,10,Taylor,
+6,Ava,Bennett,2007-06-25,Nut allergy,Yes,11,Rendall,Vegan
+7,Ethan,Thompson,2009-02-14,,Yes,9,Bryant,
+8,Sophia,Li,2008-09-30,Lactose intolerant,Yes,10,Evans,
+9,Lucas,Hall,2007-12-19,,Yes,11,Morgan,Gluten-free
+10,Mia,Scott,2009-04-07,,Yes,9,Starling,
+11,Benjamin,Adams,2008-08-21,,Yes,10,Bryant,Vegetarian
+12,Isabella,Hassan,2007-05-30,Asthma,Yes,11,Evans,
+13,William,Carter,2009-01-12,,Yes,9,Morgan,
+14,Charlotte,Hughes,2008-06-18,Peanut allergy,Yes,10,Starling,
+15,James,Martin,2007-10-25,,No,11,Bryant,Gluten-free
+16,Amelia,Cooper,2009-03-03,,Yes,9,Evans,Vegan
+17,Henry,Rogers,2008-11-11,Lactose intolerant,Yes,10,Morgan,
+18,Lily,Zhao,2007-07-22,,Yes,11,Starling,Vegetarian
+19,Daniel,Price,2009-09-14,,Yes,9,Bryant,
+20,Grace,Bell,2008-02-28,Nut allergy,Yes,10,Evans,
+

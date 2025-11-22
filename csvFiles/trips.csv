@@ -1,0 +1,9 @@
+teacherID,destination,startDate,endDate,tripType,activeStatus,title,subject,national
+1,London,2025-06-10,2025-06-12,Day,Active,History Trip,History,National
+2,Paris,2025-07-01,2025-07-05,Residential,Active,Art Immersion,Art,International
+3,Edinburgh,2025-09-15,2025-09-17,Residential,Inactive,Music Workshop,Music,National
+4,Rome,2025-10-01,2025-10-05,Residential,Active,Classics Trip,History,International
+5,Oxford,2025-08-12,2025-08-14,Day,Active,Science Expo,Physics,National
+1,Cambridge,2025-11-01,2025-11-03,Day,Active,Literature Trip,English,National
+2,Berlin,2025-12-05,2025-12-10,Residential,Inactive,European Art Study,Art,International
+3,Glasgow,2025-09-20,2025-09-22,Residential,Active,Music Festival,Music,National
