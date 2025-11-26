@@ -8,7 +8,15 @@ import random
 st.set_page_config(page_title="Judd Trips App", layout="wide")
 
 
-from database import (getAllTrips,getTeachers,getTrip,createTrip,updateTrip,deleteTrip,getEnrolledStudents)
+from utils import (getAllTrips,
+                      getTeachers,
+                      getTrip,
+                      createTrip,
+                      updateTrip,
+                      deleteTrip,
+                      getEnrolledStudents,
+                      loginCheck,
+                      getActiveTrips)
 
 
 def displayTripsData(trips):
@@ -25,7 +33,6 @@ def displayTripsData(trips):
         'National': 'Yes' if t['national'] == 1 else 'No'
     } for t in trips]
     return pd.DataFrame(data)
-demoUser = {"email": "admin@judd.kent.sch.uk", "password": "admin123"}
 
 if "isLoggedIn" not in st.session_state:
     st.session_state.isLoggedIn = False
@@ -44,11 +51,11 @@ def loginPage():
     with st.container():
         st.title(":red[The] :blue[Judd School] :grey[Trips App]")
         with st.form(key="my_form"): #this groups the widgets together
-            email = st.text_input("School Email", placeholder="name@judd.kent.sch.uk")
+            username = st.text_input("Username", placeholder="Enter the provided details for access to your account")
             password = st.text_input("Password", type="password", placeholder="Enter your password")
             loginButton = st.form_submit_button("Log in")
             if loginButton:
-                if email == demoUser["email"] and password == demoUser["password"]:
+                if loginCheck(username, password):
                     st.session_state.isLoggedIn = True
                     st.rerun()
                 else:
@@ -144,7 +151,44 @@ def calendarPage():
     st.markdown(calendarHtml, unsafe_allow_html=True)
 
 def informationPage():
-    st.title("Information page X")
+    st.title("Information page")
+    activeTrips = getActiveTrips()
+    if not activeTrips:
+        st.info("No active trips available")
+        return
+    activeTripsTabs = [trip["title"]for trip in activeTrips]
+    tabs = st.tabs(activeTripsTabs)
+    for i,j in enumerate(activeTrips):
+        with tabs[i]:
+            tripDetails = getTrip(j["tripID"])
+            if not tripDetails:
+                st.error("loading trips broke")
+                continue
+            st.write(f"**Destination:** {tripDetails['destination']}")
+            st.write(f"**Start Date:** {tripDetails['startDate']}")
+            st.write(f"**End Date:** {tripDetails['endDate']}")
+            st.write(f"**Trip Type:** {tripDetails['tripType']}")
+            st.write(f"**Subject:** {tripDetails['subject']}")
+            st.write(f"**National:** {'Yes' if tripDetails['national'] else 'No'}")
+            st.divider()
+            st.subheader("Enrolled Students")
+            enrolledStudents=getEnrolledStudents(j["tripID"])
+            if not enrolledStudents:
+                st.info("No students enrolled in this trip.")
+                continue
+            studentNames=[f"{student['first']} {student['last']} (ID: {student['studentID']})" for student in enrolledStudents]
+            selectedStudentName=st.selectbox("Select a student to view details:", studentNames, key=f"studentSelect_{j['tripID']}")
+            selectedStudentID=int(selectedStudentName.split("ID: ")[1][:-1])
+            selectedStudent=next(student for student in enrolledStudents if student["studentID"]==selectedStudentID)
+            st.subheader("Student Details")
+            st.write(f"**Name:** {selectedStudent['first']} {selectedStudent['last']}")
+            st.write(f"**Date of Birth:** {selectedStudent['DOB']}")
+            st.write(f"**Year Group:** {selectedStudent['year']}")
+            st.write(f"**House:** {selectedStudent['house']}")
+            st.write(f"**Dietary Requirements:** {selectedStudent['dietaryRequirements'] or 'None'}")
+            st.write(f"**Consent Given:** {'Yes' if selectedStudent['consent'] else 'No'}")
+            st.write("**Medical Information:**")
+            st.info(selectedStudent["medicalInfo"] if selectedStudent["medicalInfo"] else "None")
 
 def homePage():
     st.title("Welcome to The Judd School Trips App")
