@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 
 def getConnection():
     return sqlite3.connect("trips.db", check_same_thread=False)
@@ -17,7 +18,7 @@ def loginCheck(username,password): #checking for the username and password is st
     else:
         return False
 
-def resetTrips(): #to reset the trips table, used to debug the SQL logic
+def resetTripsandIDs(): #to reset the trips table, used to debug the SQL logic
     connection = getConnection()
     cursor = connection.cursor()
     
@@ -33,7 +34,7 @@ def resetTripEnrollment():
     connection = sqlite3.connect("trips.db")  # replace with your DB path
     cursor = connection.cursor()
     
-    cursor.execute("DELETE FROM tripEnrollment")  # removes all rows
+    cursor.execute("DELETE FROM trip")  # removes all rows
     connection.commit()
     connection.close()
 
@@ -216,4 +217,38 @@ def displayUserTable():
     print(cursor.fetchall())  
     connection.close()
 
-displayTripEnrollmentTable()
+def getTeacherOptions():
+    teachers = getTeachers()
+    teacherOptions = {f"{t['first']} {t['second']} (ID: {t['teacherID']})": t['teacherID'] for t in teachers}
+    return teacherOptions, teachers
+
+def getTripOptionsNumbered():
+    allTrips = getAllTrips()
+    if not allTrips:
+        return {}, []
+    sortedTrips = sorted(allTrips, key=lambda x: x['tripID'])
+    tripOptions = {f"{i+1}. {t['title']}": t['tripID'] for i, t in enumerate(sortedTrips)}
+    return tripOptions, sortedTrips
+
+def inORactiveTrips():
+    connection =getConnection()
+    cursor = connection.cursor()
+    today = datetime.today().date()
+    cursor.execute("SELECT tripID, endDate FROM trip WHERE activeStatus = 1")
+    trips = cursor.fetchall()
+    for num in trips:
+        tripID, endDateStr = num
+        # Convert endDate string to date
+        endDate = datetime.strptime(endDateStr, "%Y-%m-%d").date()
+        
+        # If the trip has ended, set activeStatus to 0
+        if endDate < today:
+            cursor.execute("UPDATE trip SET activeStatus = 0 WHERE tripID = ?", (tripID,))
+    
+    # Commit changes and close the connection
+    connection.commit()
+    connection.close()
+
+
+displayTripTable()
+displayUserTable()

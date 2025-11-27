@@ -16,7 +16,11 @@ from utils import (getAllTrips,
                       deleteTrip,
                       getEnrolledStudents,
                       loginCheck,
-                      getActiveTrips)
+                      getActiveTrips,
+                      getTeacherOptions,
+                      getTripOptionsNumbered,
+                      inORactiveTrips
+                      )
 
 
 def displayTripsData(trips):
@@ -39,13 +43,11 @@ if "isLoggedIn" not in st.session_state:
 if "page" not in st.session_state:
     st.session_state.page = "Home"
 
-st.markdown("""
-    <style>
-    .stApp {background-color: #c6c5c6;}
-    .subtitle {font-size: 2rem;color: #1f3b4d;margin-bottom: 2rem;}
-    .main-header {color: #1f3b4d; font-weight: bold;}
-    </style>
-""", unsafe_allow_html=True)
+st.markdown("""<style>
+.stApp{background-color:#0a1a3c;color:#fff;}
+.subtitle{font-size:2rem;color:#fff;margin-bottom:2rem;}
+.main-header{color:#fff;font-weight:bold;}
+</style>""", unsafe_allow_html=True)
 
 def loginPage():
     with st.container():
@@ -69,36 +71,41 @@ def sidebar():
         st.session_state.page = "Home"
     if st.sidebar.button("Calendar"):
         st.session_state.page = "Calendar"
-    if st.sidebar.button("Information"):
+    if st.sidebar.button("Trips Information"):
         st.session_state.page = "Information"
-    if st.sidebar.button("Trips"):
+    if st.sidebar.button("Trips management"):
         st.session_state.page = "Trips"
     st.sidebar.markdown("---")
     if st.sidebar.button("Log Out"):
-        st.session_state.isLoggedIn = False
+        st.session_state.isLoggedIn = False #this makes the page restart
         st.session_state.page = "Home"
         st.rerun()
 
         
 
 def calendarPage():
-    st.title("Calendar")
-    st.session_state.tripCalendar = {} 
+    st.session_state.tripCalendar = {}
     trips = getAllTrips()
+
     for trip in trips:
         try:
             startDate = datetime.strptime(trip['startDate'], '%Y-%m-%d').date()
             endDate = datetime.strptime(trip['endDate'], '%Y-%m-%d').date()
             currentDate = startDate
+
             while currentDate <= endDate:
                 st.session_state.tripCalendar[currentDate] = trip['title']
                 currentDate += timedelta(days=1)
-        except:
+
+        except Exception as e:
             continue
 
+
+    # Handle month switching
     today = date.today()
     yearSelected = st.session_state.get("calYear", today.year)
     monthSelected = st.session_state.get("calMonth", today.month)
+
     col1, col2, col3 = st.columns(3)
 
     if col1.button("<-- Previous Month"):
@@ -117,35 +124,47 @@ def calendarPage():
 
     st.session_state.calYear = yearSelected
     st.session_state.calMonth = monthSelected
+
     st.subheader(f"{c.month_name[monthSelected]} {yearSelected}")
 
+
+    # Build HTML calendar
     monthCal = c.monthcalendar(yearSelected, monthSelected)
 
     st.markdown("""
     <style>
-.calendarTable {width: 100%; border-collapse: collapse;}
-.calendarTable th {padding: 8px; text-align: center; background: #1f3b4d; color: white;}
-.calendarTable td {padding: 12px; text-align: center; border: 2px solid #ddd; background-color: inherit;}
-.tripDay {background-color: #ffd54f;}
-.dayNumber {font-weight: 900; color: black;}
+    .calendarTable {width: 100%; border-collapse: collapse; background-color: #fff;}
+    .calendarTable th {padding: 4px; text-align: center; background: #fff; color: #000; border: 1px solid #ccc;}
+    .calendarTable td {padding: 6px; text-align: center; border: 1px solid #ccc; background-color: #fff; color: #000;}
+    .tripDay {background-color: #f0f0f0;}
+    .dayNumber {font-weight: 900; color: #000;}
     </style>
     """, unsafe_allow_html=True)
 
-    calendarHtml = "<table class='calendarTable'><tr>" + "".join(f"<th>{d}</th>" for d in ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]) + "</tr>"
+    calendarHtml = (
+        "<table class='calendarTable'><tr>" +
+        "".join(f"<th>{d}</th>" for d in ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]) +
+        "</tr>"
+    )
+
     for week in monthCal:
         calendarHtml += "<tr>"
         for day in week:
             if day == 0:
                 calendarHtml += "<td></td>"
             else:
-                dateKey = date(yearSelected, monthSelected, day)
-                tripTitle = st.session_state.tripCalendar.get(dateKey)
+                cellDate = date(yearSelected, monthSelected, day)
+                tripTitle = st.session_state.tripCalendar.get(cellDate)
+
                 classes = "tripDay" if tripTitle else ""
                 content = f"<span class='dayNumber'>{day}</span>"
+
                 if tripTitle:
                     content += f"<div style='font-size: 0.75rem;'>{tripTitle}</div>"
+
                 calendarHtml += f"<td class='{classes}'>{content}</td>"
         calendarHtml += "</tr>"
+
     calendarHtml += "</table>"
 
     st.markdown(calendarHtml, unsafe_allow_html=True)
@@ -153,6 +172,7 @@ def calendarPage():
 def informationPage():
     st.title("Information page")
     activeTrips = getActiveTrips()
+    inORactiveTrips()
     if not activeTrips:
         st.info("No active trips available")
         return
@@ -193,38 +213,7 @@ def informationPage():
 def homePage():
     st.title("Welcome to The Judd School Trips App")
     st.subheader("Trip Administrator Dashboard")
-    st.image("https://search.brave.com/images?q=the+judd+school", use_container_width=True)
-
-# --- Helpers ---
-def getTripOptionsNumbered():
-    """Return a dict of numbered trip display name -> tripID, sorted by tripID."""
-    trips = getAllTrips()
-    trips.sort(key=lambda x: x['tripID'])
-    options = {f"{i+1}. {t['title']}": t['tripID'] for i, t in enumerate(trips)}
-    return options, trips
-
-def getTeacherOptions():
-    teachers = getTeachers()
-    return {f"{t['first']} {t['second']} (ID: {t['teacherID']})": t['teacherID'] for t in teachers}, teachers
-
-
-# --- Tabs ---
-
-def getTeacherOptions():
-    teachers = getTeachers()
-    teacherOptions = {f"{t['first']} {t['second']} (ID: {t['teacherID']})": t['teacherID'] for t in teachers}
-    return teacherOptions, teachers
-
-def getTripOptionsNumbered():
-    allTrips = getAllTrips()
-    if not allTrips:
-        return {}, []
-    sortedTrips = sorted(allTrips, key=lambda x: x['tripID'])
-    tripOptions = {f"{i+1}. {t['title']}": t['tripID'] for i, t in enumerate(sortedTrips)}
-    return tripOptions, sortedTrips
-
-
-# ------------------ Tabs ------------------
+    st.image("https://search.brave.com/images?q=the+judd+school", width="stretch")
 
 def createTripTab():
     st.subheader("Plan a New School Trip")
@@ -422,16 +411,17 @@ def viewEnrollmentTab():
             'Medical Info': s.get('medicalInfo') or 'None',
             'Consent Given': 'Yes' if s.get('consent') == 1 else 'No'
         } for s in enrolled]
-        st.dataframe(data, use_container_width=True, hide_index=True)
+        st.dataframe(data, width='stretch', hide_index=True)
     else:
         st.warning("No students enrolled.")
         
 def tripsPage():
     st.title("Trips Management")
     allTrips = getAllTrips()
+    inORactiveTrips()
     if allTrips:
         df = displayTripsData(allTrips)
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.dataframe(df, width='stretch', hide_index=True)
     else:
         st.info("No trips found.")
 

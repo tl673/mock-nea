@@ -177,8 +177,6 @@ for studentID in students:
 
 
 connection.commit()
-
-
 print("students enrolled in trips") #confirmation message for when running/testing the code and can be removed later
 
 
@@ -200,3 +198,5 @@ connection.commit()
 connection.close()
 
 print("user accounts created") 
+
+
